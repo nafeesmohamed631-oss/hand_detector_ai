@@ -63,11 +63,14 @@ let isPredicting = false;
 
 let activeTab = "tab-media"; // tab-media | tab-slides | tab-system
 let currentGesture = "None";
-let gestureConfidence = 0;
+
+// State-based edge trigger variables (NO REPEATS WHILE HELD)
+let currentLockedGesture = ""; // Locks current gesture so it fires ONLY ONCE
+let candidateGesture = "";     // Current candidate in consecutive frames
+let candidateFramesCount = 0;  // Frame stability accumulator
+let noHandFramesCount = 0;     // Counter for empty frames to reset lock
 let lastTriggerTime = 0;
-let triggerCooldownMs = 900;
-let consecutiveGestureCount = 0;
-let candidateGesture = "";
+let triggerCooldownMs = 800;
 
 // Media playlist
 const playlist = [
@@ -118,15 +121,15 @@ function playTone(freq, duration, type = "sine") {
     }
 }
 
-// Voice synthesis feedback
+// Voice synthesis feedback - Speaks ONLY ONCE per gesture activation
 function speakAction(text) {
     if (!voiceToggle.checked) return;
     if ("speechSynthesis" in window) {
-        window.speechSynthesis.cancel(); // cancel pending speech
+        window.speechSynthesis.cancel(); // Cancel any previous speech immediately
         const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 1.1;
+        utterance.rate = 1.15;
         utterance.pitch = 1.0;
-        utterance.volume = 0.8;
+        utterance.volume = 0.85;
         window.speechSynthesis.speak(utterance);
     }
 }
@@ -325,7 +328,7 @@ function drawHandSkeleton(hand) {
         ctx1.strokeRect(topLeft[0], topLeft[1], width, height);
 
         // Header label box
-        if (currentGesture && currentGesture !== "None") {
+        if (currentGesture && currentGesture !== "None" && currentGesture !== "Detecting...") {
             ctx1.fillStyle = "rgba(15, 23, 42, 0.85)";
             ctx1.fillRect(topLeft[0], Math.max(0, topLeft[1] - 26), Math.max(width, 140), 24);
             ctx1.fillStyle = "#06b6d4";
@@ -361,7 +364,6 @@ function classifyHandGesture(hand) {
     if (palmSize === 0) return { name: "None", confidence: 0 };
 
     // Check extension of 4 main fingers
-    // A finger is extended if tip is far from wrist compared to PIP, and tip is far from MCP
     function isFingerExtended(tipIdx, pipIdx, mcpIdx) {
         const tipToWrist = dist(lm[tipIdx], wrist);
         const pipToWrist = dist(lm[pipIdx], wrist);
@@ -390,16 +392,13 @@ function classifyHandGesture(hand) {
     const pinchDist = dist(thumbTip, lm[8]);
     const isPinching = pinchDist < palmSize * 0.38;
 
-    // Extended finger counts
+    // Extended finger count
     const extendedCount = (indexExtended ? 1 : 0) + (middleExtended ? 1 : 0) + (ringExtended ? 1 : 0) + (pinkyExtended ? 1 : 0);
 
     // 1. OK Gesture 👌:
-    // Thumb and Index tips touch, Middle and Ring fingers are extended (or at least Middle)
-    if (isPinching && middleExtended && !pinkyExtended) {
-        return { name: "OK Gesture", icon: "👌", confidence: 0.92 };
-    }
+    // Thumb and Index tips touch, Middle finger is extended
     if (isPinching && (middleExtended || ringExtended)) {
-        return { name: "OK Gesture", icon: "👌", confidence: 0.90 };
+        return { name: "OK Gesture", icon: "👌", confidence: 0.92 };
     }
 
     // 2. Thumbs Up 👍:
@@ -422,18 +421,18 @@ function classifyHandGesture(hand) {
 
     // 5. Pointing ☝️:
     // Only index finger extended
-    if (indexExtended && !middleExtended && !ringExtended && !pinkyExtended) {
+    if (indexExtended && !middleExtended && !ringExtended && !pinkyExtended && !isPinching) {
         return { name: "Pointing", icon: "☝️", confidence: 0.91 };
     }
 
     // 6. Two Fingers (Peace / Victory) ✌️:
     // Index and Middle extended, Ring and Pinky folded
-    if (indexExtended && middleExtended && !ringExtended && !pinkyExtended) {
+    if (indexExtended && middleExtended && !ringExtended && !pinkyExtended && !isPinching) {
         return { name: "Two Fingers", icon: "✌️", confidence: 0.95 };
     }
 
     // 7. Open Palm ✋:
-    // All 4 fingers extended, thumb extended away
+    // All 4 fingers extended
     if (extendedCount >= 4) {
         return { name: "Open Palm", icon: "✋", confidence: 0.96 };
     }
@@ -441,37 +440,58 @@ function classifyHandGesture(hand) {
     return { name: "Detecting...", icon: "🖐️", confidence: 0.5 };
 }
 
-// ======================= GESTURE PROCESSING & COOLDOWN =======================
+// ======================= GESTURE PROCESSING (1-TIME TRIGGER) =======================
 function processGesture(gestureObj) {
-    currentGesture = gestureObj.name;
-    gestureConfidence = gestureObj.confidence;
+    const detectedName = gestureObj.name;
+    currentGesture = detectedName;
 
-    // Update Live HUD
-    if (gestureObj.name !== "None" && gestureObj.name !== "Detecting...") {
+    // Real-time HUD and cheat sheet highlight
+    if (detectedName !== "None" && detectedName !== "Detecting...") {
         gestureIcon.innerText = gestureObj.icon || "✋";
-        gestureName.innerText = `${gestureObj.name}`;
+        gestureName.innerText = detectedName;
         liveGestureBadge.classList.add("active");
-        highlightGestureCard(gestureObj.name);
+        highlightGestureCard(detectedName);
     } else {
         liveGestureBadge.classList.remove("active");
         highlightGestureCard("");
     }
 
-    // Debounce & Stability filter: require 2 consecutive frames of the same valid gesture
-    if (gestureObj.name === candidateGesture && gestureObj.name !== "None" && gestureObj.name !== "Detecting...") {
-        consecutiveGestureCount++;
-    } else {
-        candidateGesture = gestureObj.name;
-        consecutiveGestureCount = 1;
+    // If hand is in transition or not detected
+    if (detectedName === "None" || detectedName === "Detecting...") {
+        noHandFramesCount++;
+        // If no valid gesture for 3 frames, clear the lock so the same gesture can trigger again when presented anew
+        if (noHandFramesCount >= 3) {
+            currentLockedGesture = "";
+            candidateGesture = "";
+            candidateFramesCount = 0;
+        }
+        return;
     }
 
-    const now = Date.now();
-    const canTrigger = (now - lastTriggerTime) >= triggerCooldownMs;
+    noHandFramesCount = 0;
 
-    if (canTrigger && consecutiveGestureCount >= 2) {
-        executeGestureAction(gestureObj.name);
-        lastTriggerTime = now;
-        consecutiveGestureCount = 0;
+    // Check if the user presented a NEW gesture different from currently locked one
+    if (detectedName !== currentLockedGesture) {
+        if (detectedName === candidateGesture) {
+            candidateFramesCount++;
+        } else {
+            candidateGesture = detectedName;
+            candidateFramesCount = 1;
+        }
+
+        // Require 2 consecutive frames to confirm the new gesture
+        if (candidateFramesCount >= 2) {
+            const now = Date.now();
+            if (now - lastTriggerTime >= triggerCooldownMs) {
+                executeGestureAction(detectedName);
+                currentLockedGesture = detectedName; // LOCK THIS GESTURE: fires only ONCE while held!
+                lastTriggerTime = now;
+                candidateFramesCount = 0;
+            }
+        }
+    } else {
+        // Still holding the exact same gesture -> do NOT re-trigger, do NOT repeat speech
+        candidateFramesCount = 0;
     }
 }
 
@@ -481,6 +501,13 @@ function handleNoHand() {
     gestureIcon.innerText = "🔍";
     liveGestureBadge.classList.remove("active");
     highlightGestureCard("");
+
+    noHandFramesCount++;
+    if (noHandFramesCount >= 3) {
+        currentLockedGesture = "";
+        candidateGesture = "";
+        candidateFramesCount = 0;
+    }
 }
 
 function updateCooldownHUD() {
@@ -511,7 +538,7 @@ function executeGestureAction(gesture) {
 
     switch (gesture) {
         case "Open Palm":
-            // Play / Pause
+            // Play / Pause (Space)
             if (activeTab === "tab-media") {
                 togglePlayPauseMedia();
                 actionDesc = mediaVideoPlayer.paused ? "Media Paused ⏸" : "Media Playing ▶";
@@ -524,7 +551,7 @@ function executeGestureAction(gesture) {
             break;
 
         case "Two Fingers":
-            // Next item / slide
+            // Next item / slide (ArrowRight)
             if (activeTab === "tab-media") {
                 nextMediaTrack();
                 actionDesc = `Next Track: ${playlist[currentMediaIndex].title}`;
@@ -538,7 +565,7 @@ function executeGestureAction(gesture) {
             break;
 
         case "Pointing":
-            // Previous item / slide
+            // Previous item / slide (ArrowLeft)
             if (activeTab === "tab-media") {
                 prevMediaTrack();
                 actionDesc = `Prev Track: ${playlist[currentMediaIndex].title}`;
@@ -552,7 +579,7 @@ function executeGestureAction(gesture) {
             break;
 
         case "Thumbs Up":
-            // Confirm / Volume Up
+            // Confirm / Volume Up (+15%) (VolumeUp)
             if (activeTab === "tab-media") {
                 adjustVolume(0.15);
                 actionDesc = `Volume Up: ${Math.round(mediaVideoPlayer.volume * 100)}%`;
@@ -565,7 +592,7 @@ function executeGestureAction(gesture) {
             break;
 
         case "Thumbs Down":
-            // Cancel / Volume Down
+            // Cancel / Volume Down (-15%) (VolumeDown)
             if (activeTab === "tab-media") {
                 adjustVolume(-0.15);
                 actionDesc = `Volume Down: ${Math.round(mediaVideoPlayer.volume * 100)}%`;
@@ -578,7 +605,7 @@ function executeGestureAction(gesture) {
             break;
 
         case "Fist":
-            // Stop / Mute
+            // Stop / Mute operation (Escape)
             if (activeTab === "tab-media") {
                 stopMedia();
                 actionDesc = "Media Stopped ⏹";
@@ -591,7 +618,7 @@ function executeGestureAction(gesture) {
             break;
 
         case "OK Gesture":
-            // Select / Enter / Fullscreen
+            // Select / Fullscreen / Enter (Enter)
             if (activeTab === "tab-media") {
                 toggleMediaFullscreen();
                 actionDesc = "Toggled Fullscreen / Select OK 👌";
