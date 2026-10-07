@@ -2,68 +2,399 @@
 <html lang="en">
 
 <head>
-  <title>AI hand detection</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+  <title>AI Hand Detection & Touch-Free Computer Control</title>
+  
+  <!-- Materialize CSS & Google Fonts -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <link rel="stylesheet" href="style.css">
+  
+  <!-- ml5.js for Handpose AI -->
   <script src="https://unpkg.com/ml5@0.12.2/dist/ml5.min.js" type="text/javascript"></script>
 </head>
 
 <body>
-  <h2 id="loadingText">Loading...</h2>
-  <!-- video with size of 0px because of chrome -->
-  <video playsinline autoplay muted controls="true" id="video"></video>
-  <br><br>
-  <canvas id="c1" class="mirror"></canvas>
-  <br><br>
-  <table>
-    <tr>
-      <td>AI:</td>
-      <td>
-        <div class="switch">
-          <label>
-            Off
-            <input type="checkbox" id="ai" disabled>
-            <span class="lever"></span>
-            On
-          </label>
-        </div>
-      </td>
-    </tr>
-    <tr>
-      <td>FPS:</td>
-      <td>
-        <p class="range-field">
-          <input type="range" id="fps" min="1" max="40" value="30">
-        </p>
-      </td>
-    </tr>
-  </table>
+  <!-- Header -->
+  <header>
+    <div class="brand-container">
+      <i class="fa-solid fa-hand-sparkles brand-icon"></i>
+      <div>
+        <h1 class="brand-title">AI Gesture Control System</h1>
+        <p class="brand-subtitle">Touch-Free Computer Vision &amp; Landmark Recognition</p>
+      </div>
+    </div>
+    
+    <div class="header-badges">
+      <div class="status-badge" id="cameraBadge">
+        <span class="status-dot" id="cameraDot"></span>
+        <span id="cameraStatusText">Camera: Connecting</span>
+      </div>
+      <div class="status-badge" id="modelBadge">
+        <span class="status-dot" id="modelDot"></span>
+        <span id="modelStatusText">Model: Loading AI...</span>
+      </div>
+      <div class="status-badge" id="modeBadge">
+        <i class="fa-solid fa-desktop" style="color: var(--accent-cyan);"></i>
+        <span id="activeModeText">Media Mode</span>
+      </div>
+    </div>
+  </header>
 
-  <!-- is needed to prevent lag at first predict -->
+  <!-- Main Container -->
+  <main class="app-container">
+    <!-- Left Column: Camera Feed & AI Recognition -->
+    <section class="vision-column">
+      <div class="glass-panel">
+        <div class="canvas-wrapper">
+          <!-- Hidden video element -->
+          <video playsinline autoplay muted id="video"></video>
+          <!-- Mirrored Canvas for Live Feedback -->
+          <canvas id="c1" class="mirror"></canvas>
+
+          <!-- Camera HUD Overlay -->
+          <div class="camera-overlay">
+            <div class="hud-top">
+              <div class="gesture-live-pill" id="liveGestureBadge">
+                <span id="gestureIcon">✋</span>
+                <span id="gestureName">Detecting...</span>
+              </div>
+              <div class="cooldown-pill" title="Gesture Trigger Cooldown">
+                <span>⚡ Ready</span>
+                <div class="cooldown-bar-bg">
+                  <div class="cooldown-bar-fill" id="cooldownBar"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="hud-action-flash" id="actionFlash">
+              <span id="actionFlashText">▶ PLAY ACTION</span>
+            </div>
+          </div>
+
+          <!-- Loading Screen Overlay -->
+          <div class="loading-screen" id="loadingScreen">
+            <div class="spinner"></div>
+            <h3 id="loadingStatus">Initializing Camera &amp; AI Handpose Model...</h3>
+            <p style="font-size: 0.85rem; color: var(--text-muted);">Please allow camera access when prompted</p>
+          </div>
+        </div>
+
+        <!-- Vision & Hardware Controls -->
+        <div class="controls-grid">
+          <div class="control-item">
+            <label>AI Gesture Recognition</label>
+            <div class="switch-wrapper">
+              <label class="switch-toggle">
+                <input type="checkbox" id="aiToggle" disabled>
+                <span class="slider-round"></span>
+              </label>
+              <span id="aiToggleLabel" style="font-size: 0.85rem; font-weight: 600;">Disabled</span>
+            </div>
+          </div>
+
+          <div class="control-item">
+            <label>Voice Feedback (TTS)</label>
+            <div class="switch-wrapper">
+              <label class="switch-toggle">
+                <input type="checkbox" id="voiceToggle" checked>
+                <span class="slider-round"></span>
+              </label>
+              <span style="font-size: 0.85rem; font-weight: 600;">Speech On</span>
+            </div>
+          </div>
+
+          <div class="control-item">
+            <label>Sound FX</label>
+            <div class="switch-wrapper">
+              <label class="switch-toggle">
+                <input type="checkbox" id="sfxToggle" checked>
+                <span class="slider-round"></span>
+              </label>
+              <span style="font-size: 0.85rem; font-weight: 600;">Audio Chimes</span>
+            </div>
+          </div>
+
+          <div class="control-item">
+            <label>Trigger Cooldown <span id="cooldownVal">0.9s</span></label>
+            <input type="range" class="range-input" id="cooldownInput" min="400" max="2000" step="100" value="900">
+          </div>
+
+          <div class="control-item">
+            <label>Detection Rate <span id="fpsVal">30 FPS</span></label>
+            <input type="range" class="range-input" id="fpsInput" min="5" max="40" value="30">
+          </div>
+        </div>
+      </div>
+
+      <!-- Gesture Cheat Sheet -->
+      <div class="glass-panel">
+        <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-list-check" style="color: var(--accent-cyan);"></i> Supported Gestures &amp; Mappings
+        </h3>
+        <div class="gesture-cards">
+          <div class="gesture-card" id="card-open-palm" data-gesture="Open Palm">
+            <div class="gesture-card-icon">✋</div>
+            <div class="gesture-card-title">Open Palm</div>
+            <div class="gesture-card-action">Play / Pause</div>
+          </div>
+          <div class="gesture-card" id="card-two-fingers" data-gesture="Two Fingers">
+            <div class="gesture-card-icon">✌️</div>
+            <div class="gesture-card-title">Two Fingers</div>
+            <div class="gesture-card-action">Next Item / Slide</div>
+          </div>
+          <div class="gesture-card" id="card-point" data-gesture="Pointing">
+            <div class="gesture-card-icon">☝️</div>
+            <div class="gesture-card-title">Point</div>
+            <div class="gesture-card-action">Previous Item</div>
+          </div>
+          <div class="gesture-card" id="card-thumbs-up" data-gesture="Thumbs Up">
+            <div class="gesture-card-icon">👍</div>
+            <div class="gesture-card-title">Thumbs Up</div>
+            <div class="gesture-card-action">Confirm / Vol +</div>
+          </div>
+          <div class="gesture-card" id="card-thumbs-down" data-gesture="Thumbs Down">
+            <div class="gesture-card-icon">👎</div>
+            <div class="gesture-card-title">Thumbs Down</div>
+            <div class="gesture-card-action">Cancel / Vol -</div>
+          </div>
+          <div class="gesture-card" id="card-fist" data-gesture="Fist">
+            <div class="gesture-card-icon">✊</div>
+            <div class="gesture-card-title">Fist</div>
+            <div class="gesture-card-action">Stop / Mute</div>
+          </div>
+          <div class="gesture-card" id="card-ok" data-gesture="OK Gesture">
+            <div class="gesture-card-icon">👌</div>
+            <div class="gesture-card-title">OK Sign</div>
+            <div class="gesture-card-action">Select / Enter</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Right Column: Interactive Applications -->
+    <section class="control-column">
+      <!-- Tabs Navigation -->
+      <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="tab-media" id="tabBtnMedia">
+          <i class="fa-solid fa-film"></i> Media Control
+        </button>
+        <button class="tab-btn" data-tab="tab-slides" id="tabBtnSlides">
+          <i class="fa-solid fa-file-powerpoint"></i> Presentation Deck
+        </button>
+        <button class="tab-btn" data-tab="tab-system" id="tabBtnSystem">
+          <i class="fa-solid fa-keyboard"></i> Key Simulator
+        </button>
+      </nav>
+
+      <!-- TAB 1: Media Player Controller -->
+      <div class="glass-panel tab-content active" id="tab-media">
+        <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.75rem; display: flex; align-items: center; justify-content: space-between;">
+          <span><i class="fa-solid fa-play-circle" style="color: var(--accent-cyan);"></i> Touchless Media Center</span>
+          <span style="font-size: 0.8rem; color: var(--text-muted);" id="nowPlayingTitle">Nature Scenery Video</span>
+        </h3>
+        
+        <div class="player-container">
+          <video id="mediaVideoPlayer" class="player-video" loop playsinline src="https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4"></video>
+          
+          <div class="player-custom-ui">
+            <div class="player-track-info">
+              <span id="playerStateText"><i class="fa-solid fa-pause"></i> Paused</span>
+              <span class="volume-indicator"><i class="fa-solid fa-volume-high" id="volumeIcon"></i> <span id="volumeLevelText">70%</span></span>
+            </div>
+            
+            <div class="progress-track" id="videoProgressBar">
+              <div class="progress-fill" id="videoProgressFill"></div>
+            </div>
+
+            <div class="player-controls-row">
+              <div class="player-actions">
+                <button class="player-btn" id="btnPrevMedia" title="Prev (☝️)"><i class="fa-solid fa-backward-step"></i></button>
+                <button class="player-btn" id="btnPlayMedia" title="Play/Pause (✋)"><i class="fa-solid fa-play" id="playBtnIcon"></i></button>
+                <button class="player-btn" id="btnNextMedia" title="Next (✌️)"><i class="fa-solid fa-forward-step"></i></button>
+                <button class="player-btn" id="btnStopMedia" title="Stop (✊)"><i class="fa-solid fa-stop"></i></button>
+              </div>
+              
+              <div class="player-actions">
+                <button class="player-btn" id="btnVolDown" title="Volume - (👎)"><i class="fa-solid fa-volume-low"></i></button>
+                <button class="player-btn" id="btnVolUp" title="Volume + (👍)"><i class="fa-solid fa-volume-high"></i></button>
+                <button class="player-btn" id="btnFullscreen" title="Fullscreen (👌)"><i class="fa-solid fa-expand"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: flex-end;">
+          <button class="btn-sm" id="btnLoadSample1"><i class="fa-solid fa-film"></i> Clip 1 (Animation)</button>
+          <button class="btn-sm" id="btnLoadSample2"><i class="fa-solid fa-mountain"></i> Clip 2 (Landscape)</button>
+        </div>
+      </div>
+
+      <!-- TAB 2: Presentation Slides -->
+      <div class="glass-panel tab-content" id="tab-slides">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+          <h3 style="font-size: 1.05rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+            <i class="fa-solid fa-presentation-screen" style="color: var(--accent-purple);"></i> Interactive Slide Deck
+          </h3>
+          <span style="font-size: 0.85rem; font-weight: 600; color: var(--accent-cyan);" id="slideCounterText">Slide 1 / 4</span>
+        </div>
+
+        <div class="slides-deck" id="slidesContainer">
+          <!-- Slide 1 -->
+          <div class="slide-item active" data-index="1">
+            <span class="slide-badge">SYSTEM OVERVIEW</span>
+            <h2 class="slide-title">🤖 AI Hand Detection &amp; Computer Control</h2>
+            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">
+              Next-generation touchless human-computer interaction powered by real-time computer vision and 21-point hand landmark tracking.
+            </p>
+            <ul class="slide-bullets">
+              <li class="selected"><i class="fa-solid fa-check-circle" style="color: var(--accent-cyan);"></i> Zero hardware dependencies — runs directly in standard web browsers</li>
+              <li><i class="fa-solid fa-check-circle" style="color: var(--accent-cyan);"></i> Millisecond landmark spatial orientation and finger extension analysis</li>
+              <li><i class="fa-solid fa-check-circle" style="color: var(--accent-cyan);"></i> Touchless media control, slide navigation, and assistive accessibility</li>
+            </ul>
+            <div class="slide-footer">
+              <span>Use ✌️ for Next Slide | ☝️ for Previous Slide</span>
+              <span>👌 to highlight points</span>
+            </div>
+          </div>
+
+          <!-- Slide 2 -->
+          <div class="slide-item" data-index="2">
+            <span class="slide-badge">TECHNICAL ARCHITECTURE</span>
+            <h2 class="slide-title">🧠 Hand Landmark &amp; Geometric Analysis</h2>
+            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">
+              How raw video frames are converted into real-time computer control actions:
+            </p>
+            <ul class="slide-bullets">
+              <li class="selected"><i class="fa-solid fa-camera"></i> 1. High-frequency camera capture with resolution scaling</li>
+              <li><i class="fa-solid fa-network-wired"></i> 2. Deep neural network 21-keypoint 3D landmark prediction</li>
+              <li><i class="fa-solid fa-calculator"></i> 3. Euclidean vector and joint angle classification matrix</li>
+              <li><i class="fa-solid fa-bolt"></i> 4. Temporal debouncing &amp; instant event dispatching</li>
+            </ul>
+            <div class="slide-footer">
+              <span>Use ✌️ for Next Slide | ☝️ for Previous Slide</span>
+              <span>👌 to highlight points</span>
+            </div>
+          </div>
+
+          <!-- Slide 3 -->
+          <div class="slide-item" data-index="3">
+            <span class="slide-badge">GESTURE CONTROL MAPPING</span>
+            <h2 class="slide-title">🎯 Assigned Natural Interactions</h2>
+            <ul class="slide-bullets">
+              <li class="selected">✋ <strong>Open Palm:</strong> Play / Pause active media stream</li>
+              <li>✌️ <strong>Two Fingers:</strong> Forward navigation / Next slide</li>
+              <li>☝️ <strong>Point:</strong> Backward navigation / Previous slide</li>
+              <li>👍 <strong>Thumbs Up:</strong> Volume Up / Positive Confirmation</li>
+              <li>👎 <strong>Thumbs Down:</strong> Volume Down / Cancellation</li>
+              <li>✊ <strong>Fist:</strong> Instant Stop / Mute Operation</li>
+            </ul>
+            <div class="slide-footer">
+              <span>Use ✌️ for Next Slide | ☝️ for Previous Slide</span>
+              <span>👌 to highlight points</span>
+            </div>
+          </div>
+
+          <!-- Slide 4 -->
+          <div class="slide-item" data-index="4">
+            <span class="slide-badge">APPLICATIONS &amp; IMPACT</span>
+            <h2 class="slide-title">🚀 Real-World Applications</h2>
+            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.5;">
+              Touch-free interfaces empower users in diverse professional and personal contexts:
+            </p>
+            <ul class="slide-bullets">
+              <li class="selected"><i class="fa-solid fa-wheelchair" style="color: var(--accent-green);"></i> <strong>Accessibility:</strong> Assistive input for mobility-impaired users</li>
+              <li><i class="fa-solid fa-chalkboard-user" style="color: var(--accent-blue);"></i> <strong>Smart Presentations:</strong> Interactive touch-free slide delivery</li>
+              <li><i class="fa-solid fa-hospital" style="color: var(--accent-purple);"></i> <strong>Medical &amp; Cleanrooms:</strong> Sterile computer navigation</li>
+              <li><i class="fa-solid fa-house-laptop" style="color: var(--accent-cyan);"></i> <strong>Smart Home &amp; Kiosks:</strong> Hygienic touchless public interfaces</li>
+            </ul>
+            <div class="slide-footer">
+              <span>End of Slide Deck</span>
+              <span>Use ☝️ to go back</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="margin-top: 1rem; display: flex; gap: 0.5rem; justify-content: space-between; align-items: center;">
+          <button class="btn-sm" id="btnPrevSlide"><i class="fa-solid fa-arrow-left"></i> Previous (☝️)</button>
+          <button class="btn-sm" id="btnSelectBullet"><i class="fa-solid fa-check"></i> Select Bullet (👌)</button>
+          <button class="btn-sm" id="btnNextSlide">Next (✌️) <i class="fa-solid fa-arrow-right"></i></button>
+        </div>
+      </div>
+
+      <!-- TAB 3: Virtual Keyboard & System Simulation -->
+      <div class="glass-panel tab-content" id="tab-system">
+        <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+          <i class="fa-solid fa-terminal" style="color: var(--accent-green);"></i> Virtual Keyboard &amp; Event Dispatcher
+        </h3>
+        <p style="font-size: 0.8rem; color: var(--text-muted);">
+          When gestures are recognized, the system emits simulated keyboard and media events:
+        </p>
+
+        <div class="virtual-keyboard">
+          <div class="key-cap" id="key-space">
+            <div>SPACE</div>
+            <div class="key-label">Play / Pause (✋)</div>
+          </div>
+          <div class="key-cap" id="key-arrowright">
+            <div>ARROW RIGHT</div>
+            <div class="key-label">Next (✌️)</div>
+          </div>
+          <div class="key-cap" id="key-arrowleft">
+            <div>ARROW LEFT</div>
+            <div class="key-label">Prev (☝️)</div>
+          </div>
+          <div class="key-cap" id="key-enter">
+            <div>ENTER</div>
+            <div class="key-label">Select (👌)</div>
+          </div>
+          <div class="key-cap" id="key-volumeup">
+            <div>VOL UP</div>
+            <div class="key-label">Confirm (👍)</div>
+          </div>
+          <div class="key-cap" id="key-volumedown">
+            <div>VOL DOWN</div>
+            <div class="key-label">Cancel (👎)</div>
+          </div>
+          <div class="key-cap" id="key-escape">
+            <div>ESCAPE</div>
+            <div class="key-label">Stop / Mute (✊)</div>
+          </div>
+          <div class="key-cap" id="key-f11">
+            <div>FULLSCREEN</div>
+            <div class="key-label">Toggle (👌)</div>
+          </div>
+        </div>
+
+        <div style="margin-top: 1.25rem;">
+          <h4 style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem;">
+            Test Custom Input Field:
+          </h4>
+          <input type="text" id="testInputArea" placeholder="Focus here to see keyboard simulation in action..." style="width: 100%; background: #080c14; border: 1px solid var(--border-color); color: #fff; padding: 0.6rem 0.8rem; border-radius: 8px; font-size: 0.85rem;">
+        </div>
+      </div>
+
+      <!-- Action Execution Terminal Log -->
+      <div class="glass-panel terminal-panel">
+        <div class="terminal-header">
+          <span><i class="fa-solid fa-code"></i> Live Gesture &amp; Action Stream</span>
+          <button class="btn-sm" id="btnClearLog" style="padding: 0.2rem 0.6rem; font-size: 0.72rem;">Clear Log</button>
+        </div>
+        <div class="terminal-box" id="terminalLog">
+          <div class="terminal-entry">
+            <span class="terminal-time">[System]</span>
+            <span class="terminal-action">Ready for hand gesture recognition.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Hidden dummy image required by ml5 handpose warm-up -->
   <img src="mouse/pointer.png" id="img" style="display: none;">
 
-  <script>
-    var modelIsLoaded = false;
-
-    // Create a handpose method
-    const handpose = ml5.handpose({}, {}, modelLoaded);
-
-    // When the model is loaded
-    function modelLoaded() {
-      let img = document.getElementById("img");
-
-      handpose.predict(img, results => {
-        console.log(results)
-        console.log("Model Loaded!");
-        modelIsLoaded = true;
-      });
-
-    }
-  </script>
+  <!-- Script logic -->
   <script src="video.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
 </body>
 
 </html>

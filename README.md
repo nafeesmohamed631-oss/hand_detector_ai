@@ -1,38 +1,66 @@
-# 🤖 ai-hand-detection
-## 👋 About this project
-This is a web AI hand detection. You can use it in your web browser. This web application uses the camera of your device to detect your hand.
+# 🤖 AI Hand Detection & Gesture-Based Computer Control System
 
-## ⚙️ Features
+An advanced touch-free human-computer interaction (HCI) system that uses real-time computer vision and 21-point hand landmark tracking to recognize intuitive hand gestures and map them directly into computer actions.
 
-- ✅ Toggle switch to turn AI on or off
-- ✅ Range slider to control frame rate
-- ✅ Mouse example to show a possible usage case
-- ✅ Configurable border in mouse example
+---
 
-## 🖼️ Images
-<a href="https://ibb.co/T15LJDH"><img src="https://i.ibb.co/Vx8mb0v/Screenshot-2021-04-08-AI-hand-detection.png" alt="live AI-hand-detection"></a>
+## 🌟 Key Features
 
-## 💪 Try it
-If you are not convinced yet just try it out here: https://hand-detection.ai.woody.pizza/
+- 🖐️ **Real-Time 21-Point Landmark Detection**: Utilizes deep learning handpose models to track finger joints, knuckles, and palm orientation with millisecond latency.
+- 🎯 **Multi-Gesture Recognition Engine**:
+  - ✋ **Open Palm**: Play / Pause media playback or presentation auto-advance.
+  - 👍 **Thumbs Up**: Positive confirmation or Volume Up (+15%).
+  - 👎 **Thumbs Down**: Cancel action or Volume Down (-15%).
+  - ✌️ **Two Fingers (Peace / Victory)**: Navigate to Next Slide or Next Media Track.
+  - ☝️ **Pointing (Index Finger)**: Navigate to Previous Slide or Previous Media Track.
+  - ✊ **Fist**: Instant Stop or Mute operation.
+  - 👌 **OK Sign**: Select option, enter, or toggle fullscreen.
+- 🎬 **Touchless Media Control**: Built-in interactive player with play/pause, volume control, track switching, and fullscreen toggle.
+- 📊 **Interactive Presentation Slides Deck**: Touch-free slide delivery with next/prev slide navigation and bullet point highlighting.
+- 💻 **Virtual Keyboard & Action Dispatcher**: Real-time event simulator with visual feedback on keypresses.
+- 🔊 **Multi-Modal Audio Feedback**: Synthesized futuristic UI chimes and Text-to-Speech (TTS) voice announcements for every triggered action.
+- ⚡ **Debouncing & Cooldown Engine**: Prevents accidental repeated activations with a customizable cooldown timer and live visual countdown HUD.
+- 🎨 **Futuristic Glassmorphism UI**: Cyberpunk landmark skeleton visualization, real-time gesture badges, and live terminal event stream.
 
-There is also an example where you can control the mouse by using your hand: https://hand-detection.ai.woody.pizza/mouse
+---
 
-## 🌐 Multiple browser support
-Probably this will work with the most browsers, but here is a list which browsers I have tested: 
+## 🚀 How to Run the Project
 
-|      Browser      | supported |
-|:-----------------:|:---------:|
-|      Firefox      |     ✅     |
-|      Chrome       |     ✅     |
-|        Edge       |     ✅     |
-| Internet Explorer |     ❌     |
+### 1. Start the Local Web Server
+In your terminal or PowerShell, run:
+```powershell
+python -m http.server 8000
+```
 
-| Mobile Browser | supported |
-|:--------------:|:---------:|
-|     Firefox    |     ✅     |
-|     Chrome     |     ✅     |
+### 2. Open in Your Browser
+Open your browser and navigate to:
+```
+http://localhost:8000
+```
 
-## ✌️ Credits
-- [Materialize](https://materializecss.com/)
-- [ml5js](https://ml5js.org/)
-"# hand_detector_ai" 
+### 3. Grant Camera Access
+- When prompted by the browser, click **Allow** to grant webcam access.
+- Once the AI model initializes (1–2 seconds), the AI toggle switch will turn on automatically and the live camera HUD will start tracking your hand!
+
+---
+
+## 📋 Gesture Action Matrix
+
+| Gesture | Icon | Media Mode Action | Presentation Mode Action | Simulated Key |
+| :--- | :---: | :--- | :--- | :---: |
+| **Open Palm** | ✋ | Play / Pause | Toggle Auto-Play | `Space` |
+| **Two Fingers** | ✌️ | Next Track | Next Slide | `ArrowRight` |
+| **Pointing** | ☝️ | Previous Track | Previous Slide | `ArrowLeft` |
+| **Thumbs Up** | 👍 | Volume Up (+15%) | Positive Reaction / Confirm | `VolumeUp` |
+| **Thumbs Down** | 👎 | Volume Down (-15%) | Cancel / Undo | `VolumeDown` |
+| **Fist** | ✊ | Stop / Mute | Stop / Reset Presentation | `Escape` |
+| **OK Sign** | 👌 | Toggle Fullscreen | Highlight Bullet Point | `Enter` |
+
+---
+
+## 🛠️ Built With
+
+- **HTML5 / CSS3 / JavaScript (ES6+)**
+- **ml5.js & TensorFlow.js Handpose Model**
+- **Web Audio API & Web Speech Synthesis API**
+- **FontAwesome & Material Design principles**
