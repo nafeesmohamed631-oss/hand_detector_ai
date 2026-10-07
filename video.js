@@ -329,11 +329,14 @@ function drawHandSkeleton(hand) {
 
         // Header label box
         if (currentGesture && currentGesture !== "None" && currentGesture !== "Detecting...") {
+            const labelText = (typeof GESTURE_MAP !== "undefined" && GESTURE_MAP[currentGesture])
+                ? GESTURE_MAP[currentGesture].meaning
+                : currentGesture;
             ctx1.fillStyle = "rgba(15, 23, 42, 0.85)";
-            ctx1.fillRect(topLeft[0], Math.max(0, topLeft[1] - 26), Math.max(width, 140), 24);
+            ctx1.fillRect(topLeft[0], Math.max(0, topLeft[1] - 26), Math.max(width, 160), 24);
             ctx1.fillStyle = "#06b6d4";
             ctx1.font = "bold 13px 'Segoe UI', sans-serif";
-            ctx1.fillText(`${currentGesture}`, topLeft[0] + 6, Math.max(16, topLeft[1] - 9));
+            ctx1.fillText(labelText, topLeft[0] + 6, Math.max(16, topLeft[1] - 9));
         }
     }
 }
@@ -440,6 +443,33 @@ function classifyHandGesture(hand) {
     return { name: "Detecting...", icon: "🖐️", confidence: 0.5 };
 }
 
+// ======================= GESTURE MEANINGS (Customizable) =======================
+const GESTURE_MAP = {
+    "Thumbs Up":   { label: "Thumbs Up Detected",      meaning: "OK",             icon: "👍" },
+    "Open Palm":   { label: "Open Palm Detected",       meaning: "RAISE YOUR HAND", icon: "✋" },
+    "Fist":        { label: "Fist Detected",            meaning: "CLOSED",         icon: "✊" },
+    "Two Fingers": { label: "Victory Gesture Detected", meaning: "WIN",            icon: "✌️" }
+};
+
+// DOM refs for the result panel
+const gestureResultDisplay = document.getElementById("gestureResultDisplay");
+const gestureResultIcon    = document.getElementById("gestureResultIcon");
+const gestureResultLabel   = document.getElementById("gestureResultLabel");
+const gestureResultMeaning = document.getElementById("gestureResultMeaning");
+
+/** Update the large gesture result display in real-time */
+function updateResultDisplay(gestureName) {
+    const info = GESTURE_MAP[gestureName];
+    if (info) {
+        gestureResultIcon.innerText    = info.icon;
+        gestureResultLabel.innerText   = info.label;
+        gestureResultMeaning.innerText = info.meaning;
+        gestureResultDisplay.classList.add("active");
+    } else {
+        gestureResultDisplay.classList.remove("active");
+    }
+}
+
 // ======================= GESTURE PROCESSING (1-TIME TRIGGER) =======================
 function processGesture(gestureObj) {
     const detectedName = gestureObj.name;
@@ -451,9 +481,12 @@ function processGesture(gestureObj) {
         gestureName.innerText = detectedName;
         liveGestureBadge.classList.add("active");
         highlightGestureCard(detectedName);
+        // Update result display continuously while gesture is visible
+        updateResultDisplay(detectedName);
     } else {
         liveGestureBadge.classList.remove("active");
         highlightGestureCard("");
+        updateResultDisplay(null);
     }
 
     // If hand is in transition or not detected
@@ -501,6 +534,7 @@ function handleNoHand() {
     gestureIcon.innerText = "🔍";
     liveGestureBadge.classList.remove("active");
     highlightGestureCard("");
+    updateResultDisplay(null);
 
     noHandFramesCount++;
     if (noHandFramesCount >= 3) {
@@ -509,6 +543,7 @@ function handleNoHand() {
         candidateFramesCount = 0;
     }
 }
+
 
 function updateCooldownHUD() {
     const elapsed = Date.now() - lastTriggerTime;
