@@ -14,7 +14,8 @@ An advanced touch-free human-computer interaction (HCI) system that uses real-ti
   - ✌️ **Two Fingers (Peace / Victory)**: Navigate to Next Slide or Next Media Track.
   - ☝️ **Pointing (Index Finger)**: Navigate to Previous Slide or Previous Media Track.
   - ✊ **Fist**: Instant Stop or Mute operation.
-  - 👌 **OK Sign**: Select option, enter, or toggle fullscreen.
+  - 👌 **OK Sign**: Select the next presentation bullet or toggle media fullscreen.
+  - 🤟 **Three Fingers**: Switch between Media and Presentation modes.
 - 🎬 **Touchless Media Control**: Built-in interactive player with play/pause, volume control, track switching, and fullscreen toggle.
 - 📊 **Interactive Presentation Slides Deck**: Touch-free slide delivery with next/prev slide navigation and bullet point highlighting.
 - 💻 **Virtual Keyboard & Action Dispatcher**: Real-time event simulator with visual feedback on keypresses.
@@ -52,9 +53,10 @@ http://localhost:8000
 | **Two Fingers** | ✌️ | Next Track | Next Slide | `ArrowRight` |
 | **Pointing** | ☝️ | Previous Track | Previous Slide | `ArrowLeft` |
 | **Thumbs Up** | 👍 | Volume Up (+15%) | Positive Reaction / Confirm | `VolumeUp` |
-| **Thumbs Down** | 👎 | Volume Down (-15%) | Cancel / Undo | `VolumeDown` |
+| **Thumbs Down** | 👎 | Volume Down (-15%) | Select Previous Bullet (Undo) | `VolumeDown` |
 | **Fist** | ✊ | Stop / Mute | Stop / Reset Presentation | `Escape` |
-| **OK Sign** | 👌 | Toggle Fullscreen | Highlight Bullet Point | `Enter` |
+| **OK Sign** | 👌 | Toggle Fullscreen | Select Next Bullet | `Enter` |
+| **Three Fingers** | 🤟 | Switch to Presentation Mode | Switch to Media Mode | `Tab` |
 
 ---
 

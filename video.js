@@ -397,22 +397,23 @@ function classifyHandGesture(hand) {
 
     // Extended finger count
     const extendedCount = (indexExtended ? 1 : 0) + (middleExtended ? 1 : 0) + (ringExtended ? 1 : 0) + (pinkyExtended ? 1 : 0);
+    const otherExtendedCount = (middleExtended ? 1 : 0) + (ringExtended ? 1 : 0) + (pinkyExtended ? 1 : 0);
 
     // 1. OK Gesture 👌:
-    // Thumb and Index tips touch, Middle finger is extended
-    if (isPinching && (middleExtended || ringExtended)) {
+    // Thumb and index tips touch while at least two other fingers are extended.
+    if (isPinching && otherExtendedCount >= 2) {
         return { name: "OK Gesture", icon: "👌", confidence: 0.92 };
     }
 
     // 2. Thumbs Up 👍:
     // Thumb points up, all other 4 fingers are folded
-    if (isThumbUp && extendedCount === 0) {
+    if (thumbExtendedAway && isThumbUp && extendedCount === 0) {
         return { name: "Thumbs Up", icon: "👍", confidence: 0.95 };
     }
 
     // 3. Thumbs Down 👎:
     // Thumb points down, all other 4 fingers are folded
-    if (isThumbDown && extendedCount === 0) {
+    if (thumbExtendedAway && isThumbDown && extendedCount === 0) {
         return { name: "Thumbs Down", icon: "👎", confidence: 0.94 };
     }
 
@@ -434,7 +435,12 @@ function classifyHandGesture(hand) {
         return { name: "Two Fingers", icon: "✌️", confidence: 0.95 };
     }
 
-    // 7. Open Palm ✋:
+    // 7. Three Fingers 🤟 (Index + Middle + Ring extended, Pinky folded):
+    if (indexExtended && middleExtended && ringExtended && !pinkyExtended && !isPinching) {
+        return { name: "Three Fingers", icon: "🤟", confidence: 0.93 };
+    }
+
+    // 8. Open Palm ✋:
     // All 4 fingers extended
     if (extendedCount >= 4) {
         return { name: "Open Palm", icon: "✋", confidence: 0.96 };
@@ -445,10 +451,16 @@ function classifyHandGesture(hand) {
 
 // ======================= GESTURE MEANINGS (Customizable) =======================
 const GESTURE_MAP = {
-    "Thumbs Up":   { label: "Thumbs Up Detected",      meaning: "OK",             icon: "👍" },
-    "Open Palm":   { label: "Open Palm Detected",       meaning: "RAISE YOUR HAND", icon: "✋" },
-    "Fist":        { label: "Fist Detected",            meaning: "CLOSED",         icon: "✊" },
-    "Two Fingers": { label: "Victory Gesture Detected", meaning: "WIN",            icon: "✌️" }
+    // --- Original 4 gestures ---
+    "Thumbs Up":     { label: "Thumbs Up Detected",       meaning: "OK",             icon: "👍" },
+    "Open Palm":     { label: "Open Palm Detected",        meaning: "RAISE YOUR HAND", icon: "✋" },
+    "Fist":          { label: "Fist Detected",             meaning: "CLOSED",         icon: "✊" },
+    "Two Fingers":   { label: "Victory Gesture Detected",  meaning: "WIN",            icon: "✌️" },
+    // --- 4 Additional gestures ---
+    "Pointing":      { label: "Pointing Detected",         meaning: "PREVIOUS",            icon: "☝️" },
+    "OK Gesture":    { label: "OK Sign Detected",          meaning: "SELECT / FULLSCREEN", icon: "👌" },
+    "Thumbs Down":   { label: "Thumbs Down Detected",      meaning: "VOLUME DOWN / UNDO",  icon: "👎" },
+    "Three Fingers": { label: "Three Fingers Detected",    meaning: "SWITCH MODE",         icon: "🤟" }
 };
 
 // DOM refs for the result panel
@@ -567,35 +579,57 @@ function highlightGestureCard(gestureName) {
     });
 }
 
-// ======================= GESTURE ACTION DISPATCHER (4 Gestures Only) =======================
+// ======================= GESTURE ACTION DISPATCHER =======================
 function executeGestureAction(gesture) {
     const info = GESTURE_MAP[gesture];
 
-    // Only act on the 4 recognized gestures — ignore everything else
     if (!info) return;
 
-    const actionDesc = `${info.label} → ${info.meaning}`;
-
-    // Highlight the matching key in the Virtual Keyboard tab
     const keyMap = {
-        "Thumbs Up":   "key-thumbsup",
-        "Open Palm":   "key-openpalmm",
-        "Fist":        "key-fist",
-        "Two Fingers": "key-victory"
+        "Thumbs Up":     "key-thumbsup",
+        "Open Palm":     "key-openpalmm",
+        "Fist":          "key-fist",
+        "Two Fingers":   "key-victory",
+        "Pointing":      "key-pointing",
+        "OK Gesture":    "key-ok",
+        "Thumbs Down":   "key-thumbsdown",
+        "Three Fingers": "key-three"
     };
     triggerVirtualKey(keyMap[gesture]);
 
+    switch (gesture) {
+        case "Pointing":
+            if (activeTab === "tab-media") prevMediaTrack();
+            else if (activeTab === "tab-slides") prevSlide();
+            break;
+        case "OK Gesture":
+            if (activeTab === "tab-media") toggleMediaFullscreen();
+            else if (activeTab === "tab-slides") selectNextBullet();
+            break;
+        case "Thumbs Down":
+            if (activeTab === "tab-media") adjustVolume(-0.15);
+            else if (activeTab === "tab-slides") selectPreviousBullet();
+            break;
+        case "Three Fingers":
+            document.getElementById(activeTab === "tab-media" ? "tabBtnSlides" : "tabBtnMedia").click();
+            break;
+    }
+
     // Play a unique tone per gesture
     const toneMap = {
-        "Thumbs Up":   [660, 0.18, "sine"],
-        "Open Palm":   [520, 0.18, "triangle"],
-        "Fist":        [260, 0.22, "square"],
-        "Two Fingers": [780, 0.18, "sine"]
+        "Thumbs Up":     [660, 0.18, "sine"],
+        "Open Palm":     [520, 0.18, "triangle"],
+        "Fist":          [260, 0.22, "square"],
+        "Two Fingers":   [780, 0.18, "sine"],
+        "Pointing":      [440, 0.16, "triangle"],
+        "OK Gesture":    [830, 0.18, "sine"],
+        "Thumbs Down":   [200, 0.20, "sawtooth"],
+        "Three Fingers": [700, 0.16, "sine"]
     };
     const t = toneMap[gesture];
     if (t) playTone(t[0], t[1], t[2]);
 
-    // Speak the result meaning (e.g. "OK", "Raise Your Hand", "Closed", "WIN")
+    // Speak the result meaning
     speakAction(info.meaning);
 
     // Flash Action Banner on Canvas HUD
@@ -736,6 +770,14 @@ function prevSlide() {
 }
 
 function selectNextBullet() {
+    moveSelectedBullet(1);
+}
+
+function selectPreviousBullet() {
+    moveSelectedBullet(-1);
+}
+
+function moveSelectedBullet(direction) {
     const activeSlide = document.querySelector(`.slide-item[data-index="${currentSlideIndex}"]`);
     if (!activeSlide) return;
     const bullets = activeSlide.querySelectorAll(".slide-bullets li");
@@ -747,8 +789,11 @@ function selectNextBullet() {
         b.classList.remove("selected");
     });
 
-    const nextIdx = (selectedIdx + 1) % bullets.length;
-    bullets[nextIdx].classList.add("selected");
+    const nextIdx = (selectedIdx + direction + bullets.length) % bullets.length;
+    const targetIdx = selectedIdx < 0
+        ? (direction > 0 ? 0 : bullets.length - 1)
+        : nextIdx;
+    bullets[targetIdx].classList.add("selected");
 }
 
 document.getElementById("btnNextSlide").addEventListener("click", nextSlide);
@@ -761,7 +806,11 @@ const KEY_TO_GESTURE = {
     "key-thumbsup":   "Thumbs Up",
     "key-openpalmm":  "Open Palm",
     "key-fist":       "Fist",
-    "key-victory":    "Two Fingers"
+    "key-victory":    "Two Fingers",
+    "key-pointing":   "Pointing",
+    "key-ok":         "OK Gesture",
+    "key-thumbsdown": "Thumbs Down",
+    "key-three":      "Three Fingers"
 };
 
 function triggerVirtualKey(keyElementId) {
