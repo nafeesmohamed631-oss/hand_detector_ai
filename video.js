@@ -567,114 +567,42 @@ function highlightGestureCard(gestureName) {
     });
 }
 
-// ======================= COMPUTER ACTION DISPATCHER =======================
+// ======================= GESTURE ACTION DISPATCHER (4 Gestures Only) =======================
 function executeGestureAction(gesture) {
-    let actionDesc = "";
+    const info = GESTURE_MAP[gesture];
 
-    switch (gesture) {
-        case "Open Palm":
-            // Play / Pause (Space)
-            if (activeTab === "tab-media") {
-                togglePlayPauseMedia();
-                actionDesc = mediaVideoPlayer.paused ? "Media Paused ⏸" : "Media Playing ▶";
-            } else if (activeTab === "tab-slides") {
-                actionDesc = "Presentation: Auto-Play Toggled";
-            }
-            triggerVirtualKey("key-space");
-            playTone(520, 0.15, "triangle");
-            speakAction(mediaVideoPlayer.paused ? "Pause" : "Play");
-            break;
+    // Only act on the 4 recognized gestures — ignore everything else
+    if (!info) return;
 
-        case "Two Fingers":
-            // Next item / slide (ArrowRight)
-            if (activeTab === "tab-media") {
-                nextMediaTrack();
-                actionDesc = `Next Track: ${playlist[currentMediaIndex].title}`;
-            } else if (activeTab === "tab-slides") {
-                nextSlide();
-                actionDesc = `Next Slide: Slide ${currentSlideIndex} of ${totalSlides}`;
-            }
-            triggerVirtualKey("key-arrowright");
-            playTone(680, 0.12, "sine");
-            speakAction("Next");
-            break;
+    const actionDesc = `${info.label} → ${info.meaning}`;
 
-        case "Pointing":
-            // Previous item / slide (ArrowLeft)
-            if (activeTab === "tab-media") {
-                prevMediaTrack();
-                actionDesc = `Prev Track: ${playlist[currentMediaIndex].title}`;
-            } else if (activeTab === "tab-slides") {
-                prevSlide();
-                actionDesc = `Previous Slide: Slide ${currentSlideIndex} of ${totalSlides}`;
-            }
-            triggerVirtualKey("key-arrowleft");
-            playTone(440, 0.12, "sine");
-            speakAction("Previous");
-            break;
+    // Highlight the matching key in the Virtual Keyboard tab
+    const keyMap = {
+        "Thumbs Up":   "key-thumbsup",
+        "Open Palm":   "key-openpalmm",
+        "Fist":        "key-fist",
+        "Two Fingers": "key-victory"
+    };
+    triggerVirtualKey(keyMap[gesture]);
 
-        case "Thumbs Up":
-            // Confirm / Volume Up (+15%) (VolumeUp)
-            if (activeTab === "tab-media") {
-                adjustVolume(0.15);
-                actionDesc = `Volume Up: ${Math.round(mediaVideoPlayer.volume * 100)}%`;
-            } else if (activeTab === "tab-slides") {
-                actionDesc = "Slide Reaction: Confirmed 👍";
-            }
-            triggerVirtualKey("key-volumeup");
-            playTone(880, 0.18, "sine");
-            speakAction("Volume Up");
-            break;
+    // Play a unique tone per gesture
+    const toneMap = {
+        "Thumbs Up":   [660, 0.18, "sine"],
+        "Open Palm":   [520, 0.18, "triangle"],
+        "Fist":        [260, 0.22, "square"],
+        "Two Fingers": [780, 0.18, "sine"]
+    };
+    const t = toneMap[gesture];
+    if (t) playTone(t[0], t[1], t[2]);
 
-        case "Thumbs Down":
-            // Cancel / Volume Down (-15%) (VolumeDown)
-            if (activeTab === "tab-media") {
-                adjustVolume(-0.15);
-                actionDesc = `Volume Down: ${Math.round(mediaVideoPlayer.volume * 100)}%`;
-            } else if (activeTab === "tab-slides") {
-                actionDesc = "Slide Action: Cancelled 👎";
-            }
-            triggerVirtualKey("key-volumedown");
-            playTone(330, 0.18, "sawtooth");
-            speakAction("Volume Down");
-            break;
-
-        case "Fist":
-            // Stop / Mute operation (Escape)
-            if (activeTab === "tab-media") {
-                stopMedia();
-                actionDesc = "Media Stopped ⏹";
-            } else if (activeTab === "tab-slides") {
-                actionDesc = "Presentation Stopped ⏹";
-            }
-            triggerVirtualKey("key-escape");
-            playTone(220, 0.25, "square");
-            speakAction("Stop");
-            break;
-
-        case "OK Gesture":
-            // Select / Fullscreen / Enter (Enter)
-            if (activeTab === "tab-media") {
-                toggleMediaFullscreen();
-                actionDesc = "Toggled Fullscreen / Select OK 👌";
-            } else if (activeTab === "tab-slides") {
-                selectNextBullet();
-                actionDesc = "Selected Bullet Point 👌";
-            }
-            triggerVirtualKey("key-enter");
-            playTone(750, 0.15, "sine");
-            speakAction("Select");
-            break;
-
-        default:
-            return;
-    }
+    // Speak the result meaning (e.g. "OK", "Raise Your Hand", "Closed", "WIN")
+    speakAction(info.meaning);
 
     // Flash Action Banner on Canvas HUD
-    showActionFlash(actionDesc);
+    showActionFlash(`${info.icon}  ${info.meaning}`);
 
     // Log to Terminal
-    logTerminal(`[${gesture}] -> ${actionDesc}`);
+    logTerminal(`[${info.label}] → ${info.meaning}`);
 }
 
 function showActionFlash(text) {
@@ -828,15 +756,27 @@ document.getElementById("btnPrevSlide").addEventListener("click", prevSlide);
 document.getElementById("btnSelectBullet").addEventListener("click", selectNextBullet);
 
 // ======================= VIRTUAL KEYBOARD SIMULATOR =======================
+// ID-to-gesture reverse lookup so we can display the meaning in the input field
+const KEY_TO_GESTURE = {
+    "key-thumbsup":   "Thumbs Up",
+    "key-openpalmm":  "Open Palm",
+    "key-fist":       "Fist",
+    "key-victory":    "Two Fingers"
+};
+
 function triggerVirtualKey(keyElementId) {
     const el = document.getElementById(keyElementId);
     if (el) {
         el.classList.add("pressed");
-        setTimeout(() => el.classList.remove("pressed"), 300);
+        setTimeout(() => el.classList.remove("pressed"), 400);
     }
 
     if (testInputArea) {
-        testInputArea.value = `Triggered [${keyElementId.replace("key-", "").toUpperCase()}] via Hand Gesture`;
+        const gesture = KEY_TO_GESTURE[keyElementId];
+        const info = gesture && GESTURE_MAP[gesture];
+        testInputArea.value = info
+            ? `${info.icon}  ${info.label}  →  ${info.meaning}`
+            : keyElementId ? `Triggered: ${keyElementId}` : "";
     }
 }
 

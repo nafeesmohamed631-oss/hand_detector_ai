@@ -323,48 +323,36 @@
       <!-- TAB 3: Virtual Keyboard & System Simulation -->
       <div class="glass-panel tab-content" id="tab-system">
         <h3 style="font-size: 1.05rem; font-weight: 700; margin-bottom: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
-          <i class="fa-solid fa-terminal" style="color: var(--accent-green);"></i> Virtual Keyboard &amp; Event Dispatcher
+          <i class="fa-solid fa-terminal" style="color: var(--accent-green);"></i> Virtual Gesture Recognizer
         </h3>
-        <p style="font-size: 0.8rem; color: var(--text-muted);">
-          When gestures are recognized, the system emits simulated keyboard and media events:
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+          When a gesture is recognized, the corresponding tile lights up:
         </p>
 
-        <div class="virtual-keyboard">
-          <div class="key-cap" id="key-space">
-            <div>SPACE</div>
-            <div class="key-label">Play / Pause (✋)</div>
+        <div class="virtual-keyboard" style="grid-template-columns: repeat(2, 1fr);">
+          <div class="key-cap" id="key-thumbsup">
+            <div>👍 Thumbs Up</div>
+            <div class="key-label">→ OK</div>
           </div>
-          <div class="key-cap" id="key-arrowright">
-            <div>ARROW RIGHT</div>
-            <div class="key-label">Next (✌️)</div>
+          <div class="key-cap" id="key-openpalmm">
+            <div>✋ Open Palm</div>
+            <div class="key-label">→ RAISE YOUR HAND</div>
           </div>
-          <div class="key-cap" id="key-arrowleft">
-            <div>ARROW LEFT</div>
-            <div class="key-label">Prev (☝️)</div>
+          <div class="key-cap" id="key-fist">
+            <div>✊ Fist</div>
+            <div class="key-label">→ CLOSED</div>
           </div>
-          <div class="key-cap" id="key-volumeup">
-            <div>VOL UP</div>
-            <div class="key-label">Confirm / Vol + (👍)</div>
-          </div>
-          <div class="key-cap" id="key-volumedown">
-            <div>VOL DOWN</div>
-            <div class="key-label">Cancel / Vol - (👎)</div>
-          </div>
-          <div class="key-cap" id="key-escape">
-            <div>ESCAPE</div>
-            <div class="key-label">Stop / Mute (✊)</div>
-          </div>
-          <div class="key-cap" id="key-enter">
-            <div>ENTER</div>
-            <div class="key-label">Select / OK (👌)</div>
+          <div class="key-cap" id="key-victory">
+            <div>✌️ Victory</div>
+            <div class="key-label">→ WIN</div>
           </div>
         </div>
 
         <div style="margin-top: 1.25rem;">
           <h4 style="font-size: 0.85rem; font-weight: 700; color: var(--text-muted); margin-bottom: 0.4rem;">
-            Test Custom Input Field:
+            Last Detected Gesture:
           </h4>
-          <input type="text" id="testInputArea" placeholder="Focus here to see keyboard simulation in action..." style="width: 100%; background: #080c14; border: 1px solid var(--border-color); color: #fff; padding: 0.6rem 0.8rem; border-radius: 8px; font-size: 0.85rem;">
+          <input type="text" id="testInputArea" readonly placeholder="Gesture result will appear here..." style="width: 100%; background: #080c14; border: 1px solid var(--border-color); color: #fff; padding: 0.6rem 0.8rem; border-radius: 8px; font-size: 0.85rem;">
         </div>
       </div>
 
